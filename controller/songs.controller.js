@@ -1,7 +1,7 @@
 'use strict'
+const multer = require('multer');
 
-const _ = require('lodash');
-
+const url = require('url');
 exports.findAll = function (req, res) {
     //TODO scandir
 
@@ -11,38 +11,52 @@ exports.findAll = function (req, res) {
 }
 
 exports.create = function (req, res) {
-    //TODO fix only one upload 
-    //TODO validate MP3
-    try {
-        console.log(_.size((req.files.songs)))
-        console.log((req.files.songs))
-        if (!req.files) {
-            res.send({
-                status: false,
-                message: 'no file uploaded'
-            });
-        } else {
-            let data = [];
-            _.forEach(_.keysIn(req.files.songs), function (key) {
-                let song = req.files.songs[key];
-                //move files to the  directory
-                song.mv('./public/uploads/' + song.name);
-                //push file details
-                data.push({
-                    name: song.name,
-                    mimetype: song.mimetype,
-                    size: song.size
-                });
-            });
-            res.status(200).send({
-                status: 200,
-                message: 'files are uploaded',
-                data: data
-            });
+    //We transfer the folder name through URL
+    var folder = req.params.folder;
+    console.log(folder);
+    var storage = multer.diskStorage({
+        destination: 'public/' + folder + '/',
+        filename: function (req, file, callback) {
+            callback(null, file.originalname);
         }
-    } catch (err) {
-        res.status(500).send("" + err);
-    }
+    });
+    let upload = multer({ storage: storage }).array('songs', 10);
+
+    upload(req, res, function (err) {
+
+
+        let upload = multer({ storage: storage }).array('songs', 10);
+
+        try {
+            const songs = req.files;
+            console.log(songs);
+            // check if songs are available
+            if (!songs) {
+                res.status(400).send({
+                    status: false,
+                    data: 'No song is selected.'
+                });
+            } else {
+                let data = [];
+
+                // iterate over all songs
+                songs.map(p => data.push({
+                    name: p.originalname,
+                    mimetype: p.mimetype,
+                    size: p.size,
+                }));
+                // send response
+                res.send({
+                    status: true,
+                    message: 'songs are uploaded.',
+                    data: data
+                });
+            }
+
+        } catch (err) {
+            res.status(500).send(err);
+        }
+    });
 }
 
 exports.delete = function (req, res) {
